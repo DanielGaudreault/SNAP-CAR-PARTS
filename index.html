@@ -446,6 +446,12 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .saved-vehicle:hover {
+            background: #dde4e6;
         }
 
         .saved-vehicle i {
@@ -549,11 +555,158 @@
             height: 100%;
             background: var(--success);
         }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .cart-items {
+            margin: 20px 0;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .cart-total {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: right;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+
+        .maintenance-item {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .search-suggestions {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: calc(100% - 2px);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .suggestion-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+
+        .suggestion-item:hover {
+            background: #f5f5f5;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
     <div class="notification" id="notification"></div>
     
+    <!-- Shopping Cart Modal -->
+    <div class="modal" id="cartModal">
+        <div class="modal-content">
+            <h2><i class="fas fa-shopping-cart"></i> Shopping Cart</h2>
+            <div class="cart-items" id="cartItems">
+                <!-- Cart items will be populated here -->
+            </div>
+            <div class="cart-total" id="cartTotal">Total: $0.00</div>
+            <div class="part-actions">
+                <button class="btn btn-success" onclick="checkout()">
+                    <i class="fas fa-credit-card"></i> Checkout
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal('cartModal')">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Part Details Modal -->
+    <div class="modal" id="partDetailsModal">
+        <div class="modal-content">
+            <h2 id="partDetailsTitle"><i class="fas fa-info-circle"></i> Part Details</h2>
+            <div id="partDetailsContent">
+                <!-- Part details will be populated here -->
+            </div>
+            <div class="part-actions" style="margin-top: 20px;">
+                <button class="btn btn-success" id="addToCartFromDetails">
+                    <i class="fas fa-cart-plus"></i> Add to Cart
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal('partDetailsModal')">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Vehicle Modal -->
+    <div class="modal" id="addVehicleModal">
+        <div class="modal-content">
+            <h2><i class="fas fa-plus"></i> Add New Vehicle</h2>
+            <div class="form-group">
+                <label for="newVehicleYear">Year</label>
+                <select id="newVehicleYear">
+                    <option value="">Select Year</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="newVehicleMake">Make</label>
+                <input type="text" id="newVehicleMake" placeholder="e.g., Toyota">
+            </div>
+            <div class="form-group">
+                <label for="newVehicleModel">Model</label>
+                <input type="text" id="newVehicleModel" placeholder="e.g., Camry">
+            </div>
+            <div class="form-group">
+                <label for="newVehicleTrim">Trim (Optional)</label>
+                <input type="text" id="newVehicleTrim" placeholder="e.g., LE">
+            </div>
+            <div class="part-actions">
+                <button class="btn" onclick="saveNewVehicle()">
+                    <i class="fas fa-save"></i> Save Vehicle
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal('addVehicleModal')">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <header>
             <div class="logo-container">
@@ -569,6 +722,9 @@
                 </button>
                 <button class="btn" id="registerBtn">
                     <i class="fas fa-user-plus"></i> Register
+                </button>
+                <button class="btn btn-warning" id="cartBtn">
+                    <i class="fas fa-shopping-cart"></i> Cart (<span id="cartCount">0</span>)
                 </button>
             </div>
         </header>
@@ -615,7 +771,13 @@
                             <label for="vehicleModel">Model</label>
                             <select id="vehicleModel" required disabled>
                                 <option value="">Select Model</option>
+                            <option value="custom">Custom Model</option>
                             </select>
+                        </div>
+
+                        <div class="form-group" id="customModelGroup" style="display: none;">
+                            <label for="customModel">Enter Model Name</label>
+                            <input type="text" id="customModel" placeholder="Enter your vehicle model">
                         </div>
 
                         <div class="form-group">
@@ -638,12 +800,15 @@
                                 <option value="cooling">Cooling System</option>
                                 <option value="filters">Filters</option>
                                 <option value="lighting">Lighting</option>
+                                <option value="interior">Interior</option>
+                                <option value="exterior">Exterior</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="partNumber">Part Number (Optional)</label>
-                            <input type="text" id="partNumber" placeholder="e.g., 12345-ABC">
+                            <label for="partNumber">Part Number or Name (Optional)</label>
+                            <input type="text" id="partNumber" placeholder="e.g., OF-123 or 'Oil Filter'">
+                            <div class="search-suggestions" id="partSuggestions"></div>
                         </div>
 
                         <button type="submit" class="btn btn-block">
@@ -771,9 +936,9 @@
                 <p>Track your vehicle's maintenance history and get reminders for upcoming services.</p>
                 
                 <div class="tab-subnav">
-                    <button class="active" data-subtab="log">Log Maintenance</button>
-                    <button data-subtab="history">View History</button>
-                    <button data-subtab="upcoming">Upcoming Services</button>
+                    <button class="active" data-subtab="logMaintenance">Log Maintenance</button>
+                    <button data-subtab="maintenanceHistory">View History</button>
+                    <button data-subtab="upcomingServices">Upcoming Services</button>
                 </div>
                 
                 <div id="logMaintenance" class="subtab-content">
@@ -807,6 +972,11 @@
                     </div>
                     
                     <div class="form-group">
+                        <label for="maintenanceCost">Cost (Optional)</label>
+                        <input type="number" id="maintenanceCost" placeholder="0.00" step="0.01">
+                    </div>
+                    
+                    <div class="form-group">
                         <label for="maintenanceNotes">Notes (Optional)</label>
                         <textarea id="maintenanceNotes" rows="3" placeholder="Any additional details..."></textarea>
                     </div>
@@ -817,11 +987,15 @@
                 </div>
                 
                 <div id="maintenanceHistory" class="subtab-content" style="display: none;">
-                    <p>Your maintenance history will appear here once you've logged services.</p>
+                    <div id="maintenanceHistoryList">
+                        <!-- Maintenance history will be populated here -->
+                    </div>
                 </div>
                 
                 <div id="upcomingServices" class="subtab-content" style="display: none;">
-                    <p>Upcoming service reminders will appear here based on your maintenance schedule.</p>
+                    <div id="upcomingServicesList">
+                        <!-- Upcoming services will be populated here -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -836,7 +1010,7 @@
                     <!-- Saved vehicles will be populated here -->
                 </div>
                 
-                <button class="btn" style="margin-top: 20px;" onclick="showAddVehicleModal()">
+                <button class="btn" style="margin-top: 20px;" onclick="showModal('addVehicleModal')">
                     <i class="fas fa-plus"></i> Add New Vehicle
                 </button>
             </div>
@@ -895,39 +1069,57 @@
                     number: 'OF-123', 
                     brand: 'Bosch',
                     compatibleWith: ['Camry', 'Corolla', 'RAV4'], 
-                    price: '$12.99', 
+                    price: 12.99, 
                     fit: 'direct',
                     rating: 4.5,
                     reviews: 128,
-                    description: 'High-quality oil filter with synthetic media for superior engine protection.',
+                    description: 'High-quality oil filter with synthetic media for superior engine protection. Provides excellent filtration efficiency and durability.',
                     warranty: '1 year',
-                    stock: 45
+                    stock: 45,
+                    specifications: {
+                        'Thread Size': '20mm',
+                        'Height': '3.5 inches',
+                        'Bypass Valve': '12-17 PSI',
+                        'Anti-Drain Back': 'Yes'
+                    }
                 },
                 { 
                     name: 'Performance Air Filter', 
                     number: 'AF-456', 
                     brand: 'K&N',
                     compatibleWith: ['Civic', 'Accord', 'CR-V'], 
-                    price: '$42.99', 
+                    price: 42.99, 
                     fit: 'direct',
                     rating: 4.8,
                     reviews: 203,
-                    description: 'Reusable air filter that increases airflow and horsepower.',
+                    description: 'Reusable air filter that increases airflow and horsepower. Washable and reusable for up to 50,000 miles.',
                     warranty: '10 years',
-                    stock: 23
+                    stock: 23,
+                    specifications: {
+                        'Filter Material': 'Cotton Gauze',
+                        'Cleaning Interval': '50,000 miles',
+                        'HP Increase': '1-4 HP',
+                        'Reusable': 'Yes'
+                    }
                 },
                 { 
                     name: 'Iridium Spark Plugs (Set of 4)', 
                     number: 'SP-789', 
                     brand: 'NGK',
                     compatibleWith: ['F-150', 'Explorer', 'Escape'], 
-                    price: '$38.99', 
+                    price: 38.99, 
                     fit: 'direct',
                     rating: 4.6,
                     reviews: 89,
-                    description: 'Long-life iridium spark plugs for improved fuel efficiency and performance.',
+                    description: 'Long-life iridium spark plugs for improved fuel efficiency and performance. Lasts up to 100,000 miles.',
                     warranty: '3 years',
-                    stock: 67
+                    stock: 67,
+                    specifications: {
+                        'Electrode Material': 'Iridium',
+                        'Gap': '0.044 inches',
+                        'Heat Range': '6',
+                        'Life Expectancy': '100,000 miles'
+                    }
                 }
             ],
             'brakes': [
@@ -936,39 +1128,57 @@
                     number: 'BP-111', 
                     brand: 'Akebono',
                     compatibleWith: ['Camry', 'RAV4', 'Highlander'], 
-                    price: '$65.99', 
+                    price: 65.99, 
                     fit: 'direct',
                     rating: 4.7,
                     reviews: 156,
-                    description: 'Quiet, low-dust ceramic brake pads with excellent stopping power.',
+                    description: 'Quiet, low-dust ceramic brake pads with excellent stopping power. Perfect for daily driving comfort.',
                     warranty: 'Lifetime',
-                    stock: 34
+                    stock: 34,
+                    specifications: {
+                        'Material': 'Ceramic',
+                        'Wear Sensor': 'Included',
+                        'Noise Level': 'Quiet',
+                        'Dust Level': 'Low'
+                    }
                 },
                 { 
                     name: 'Premium Rear Brake Rotors', 
                     number: 'BR-222', 
                     brand: 'Power Stop',
                     compatibleWith: ['Civic', 'CR-V', 'Accord'], 
-                    price: '$112.99', 
+                    price: 112.99, 
                     fit: 'modification',
                     rating: 4.3,
                     reviews: 72,
-                    description: 'Drilled and slotted rotors for improved braking performance and heat dissipation.',
+                    description: 'Drilled and slotted rotors for improved braking performance and heat dissipation. Requires adapter bracket for installation.',
                     warranty: '2 years',
-                    stock: 18
+                    stock: 18,
+                    specifications: {
+                        'Type': 'Drilled & Slotted',
+                        'Diameter': '11.8 inches',
+                        'Thickness': '0.86 inches',
+                        'Vanes': 'Directional'
+                    }
                 },
                 { 
                     name: 'Complete Brake Kit (Front & Rear)', 
                     number: 'BK-333', 
                     brand: 'ACDelco',
                     compatibleWith: ['F-150', 'Silverado'], 
-                    price: '$249.99', 
+                    price: 249.99, 
                     fit: 'direct',
                     rating: 4.9,
                     reviews: 45,
-                    description: 'Complete brake system refresh kit including pads and rotors for all four wheels.',
+                    description: 'Complete brake system refresh kit including pads and rotors for all four wheels. Everything needed for a full brake job.',
                     warranty: '3 years',
-                    stock: 12
+                    stock: 12,
+                    specifications: {
+                        'Includes': 'Pads & Rotors (All 4)',
+                        'Bed-In Coating': 'Pre-applied',
+                        'Installation Time': '2-3 hours',
+                        'Performance': 'OE Replacement'
+                    }
                 }
             ],
             'suspension': [
@@ -977,26 +1187,38 @@
                     number: 'FS-444', 
                     brand: 'Monroe',
                     compatibleWith: ['Camry', 'Accord', 'Malibu'], 
-                    price: '$129.99', 
+                    price: 129.99, 
                     fit: 'direct',
                     rating: 4.4,
                     reviews: 93,
-                    description: 'Complete strut assembly for easy installation - no spring compression needed.',
+                    description: 'Complete strut assembly for easy installation - no spring compression needed. Pre-assembled and ready to install.',
                     warranty: 'Lifetime',
-                    stock: 28
+                    stock: 28,
+                    specifications: {
+                        'Type': 'Complete Strut',
+                        'Spring Included': 'Yes',
+                        'Installation': 'No spring compression',
+                        'Mount Included': 'Yes'
+                    }
                 },
                 { 
                     name: 'Performance Shock Absorbers (Pair)', 
                     number: 'SA-555', 
                     brand: 'Bilstein',
                     compatibleWith: ['RAV4', 'CR-V', 'Equinox'], 
-                    price: '$289.99', 
+                    price: 289.99, 
                     fit: 'not-compatible',
                     rating: 4.2,
                     reviews: 37,
-                    description: 'High-performance gas shock absorbers for improved handling and ride comfort.',
+                    description: 'High-performance gas shock absorbers for improved handling and ride comfort. Not compatible with air suspension systems.',
                     warranty: 'Limited lifetime',
-                    stock: 8
+                    stock: 8,
+                    specifications: {
+                        'Type': 'Gas Charged',
+                        'Bore Size': '46mm',
+                        'Technology': 'Monotube',
+                        'Ride Height': 'Stock'
+                    }
                 }
             ],
             'filters': [
@@ -1005,26 +1227,38 @@
                     number: 'CAF-777', 
                     brand: 'FRAM',
                     compatibleWith: ['Camry', 'Corolla', 'RAV4', 'Civic', 'Accord'], 
-                    price: '$24.99', 
+                    price: 24.99, 
                     fit: 'direct',
                     rating: 4.5,
                     reviews: 201,
-                    description: 'Activated carbon cabin air filter that removes odors and allergens.',
+                    description: 'Activated carbon cabin air filter that removes odors and allergens. Improves interior air quality.',
                     warranty: '1 year',
-                    stock: 89
+                    stock: 89,
+                    specifications: {
+                        'Media': 'Activated Carbon',
+                        'Allergen Reduction': '99%',
+                        'Odor Reduction': 'Yes',
+                        'Change Interval': '15,000 miles'
+                    }
                 },
                 { 
                     name: 'High-Capacity Fuel Filter', 
                     number: 'FF-888', 
                     brand: 'Motorcraft',
                     compatibleWith: ['F-150', 'Explorer', 'Escape'], 
-                    price: '$18.99', 
+                    price: 18.99, 
                     fit: 'direct',
                     rating: 4.6,
                     reviews: 64,
-                    description: 'OEM-quality fuel filter with high dirt-holding capacity.',
+                    description: 'OEM-quality fuel filter with high dirt-holding capacity. Protects fuel injectors and pump.',
                     warranty: '2 years',
-                    stock: 42
+                    stock: 42,
+                    specifications: {
+                        'Filter Media': 'Synthetic',
+                        'Micron Rating': '10 microns',
+                        'Pressure Rating': '75 PSI',
+                        'Connections': 'Quick-connect'
+                    }
                 }
             ]
         };
@@ -1051,9 +1285,11 @@
             ]
         };
 
-        // Saved vehicles in localStorage
+        // Application state
         let savedVehicles = JSON.parse(localStorage.getItem('savedVehicles')) || [];
         let maintenanceLogs = JSON.parse(localStorage.getItem('maintenanceLogs')) || [];
+        let shoppingCart = JSON.parse(localStorage.getItem('shoppingCart')) || [];
+        let currentVehicle = null;
 
         // DOM elements
         const notification = document.getElementById('notification');
@@ -1065,6 +1301,11 @@
             setupSubTabNavigation();
             loadSavedVehicles();
             updateMaintenanceVehicleDropdown();
+            updateCartCount();
+            setupPartSearchSuggestions();
+            
+            // Set current date for maintenance form
+            document.getElementById('maintenanceDate').valueAsDate = new Date();
             
             // Check for vehicle in URL parameters
             const urlParams = new URLSearchParams(window.location.search);
@@ -1105,14 +1346,15 @@
                 button.addEventListener('click', function() {
                     // Get parent tab content
                     const parentTab = this.closest('.tab-content');
-                    const subtabContents = parentTab.querySelectorAll('.subtab-content');
+                    const subtabId = this.getAttribute('data-subtab');
                     
-                    // Hide all subtab contents
+                    // Hide all subtab contents in this tab
+                    const subtabContents = parentTab.querySelectorAll('.subtab-content');
                     subtabContents.forEach(content => {
                         content.style.display = 'none';
                     });
                     
-                    // Remove active class from all buttons
+                    // Remove active class from all buttons in this tab
                     const allButtons = parentTab.querySelectorAll('.tab-subnav button');
                     allButtons.forEach(btn => {
                         btn.classList.remove('active');
@@ -1122,10 +1364,16 @@
                     this.classList.add('active');
                     
                     // Show corresponding content
-                    const subtabId = this.getAttribute('data-subtab');
                     const contentToShow = parentTab.querySelector(`#${subtabId}`);
                     if (contentToShow) {
                         contentToShow.style.display = 'block';
+                        
+                        // Load data for specific subtabs
+                        if (subtabId === 'maintenanceHistory') {
+                            loadMaintenanceHistory();
+                        } else if (subtabId === 'upcomingServices') {
+                            loadUpcomingServices();
+                        }
                     }
                 });
             });
@@ -1145,6 +1393,58 @@
             // Activate selected tab
             document.getElementById(tabId).classList.add('active');
             document.querySelector(`.nav-tab[data-tab="${tabId}"]`).classList.add('active');
+        }
+
+        function setupPartSearchSuggestions() {
+            const partNumberInput = document.getElementById('partNumber');
+            const suggestionsContainer = document.getElementById('partSuggestions');
+            
+            partNumberInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase();
+                suggestionsContainer.innerHTML = '';
+                
+                if (query.length < 2) {
+                    suggestionsContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Collect all parts that match the query
+                const matches = [];
+                Object.keys(partsDatabase).forEach(category => {
+                    partsDatabase[category].forEach(part => {
+                        if (part.number.toLowerCase().includes(query) || 
+                            part.name.toLowerCase().includes(query) ||
+                            part.brand.toLowerCase().includes(query)) {
+                            matches.push(part);
+                        }
+                    });
+                });
+                
+                if (matches.length > 0) {
+                    matches.slice(0, 5).forEach(part => {
+                        const suggestion = document.createElement('div');
+                        suggestion.className = 'suggestion-item';
+                        suggestion.innerHTML = `
+                            <strong>${part.number}</strong> - ${part.name} (${part.brand})
+                        `;
+                        suggestion.addEventListener('click', function() {
+                            partNumberInput.value = part.number;
+                            suggestionsContainer.style.display = 'none';
+                        });
+                        suggestionsContainer.appendChild(suggestion);
+                    });
+                    suggestionsContainer.style.display = 'block';
+                } else {
+                    suggestionsContainer.style.display = 'none';
+                }
+            });
+            
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!partNumberInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                    suggestionsContainer.style.display = 'none';
+                }
+            });
         }
 
         // Event listeners for vehicle selection
@@ -1200,20 +1500,27 @@
 
         document.getElementById('vehicleModel').addEventListener('change', function() {
             const trimSelect = document.getElementById('vehicleTrim');
+            const customModelGroup = document.getElementById('customModelGroup');
             
-            if (this.value) {
-                trimSelect.disabled = false;
-                trimSelect.innerHTML = '<option value="">Select Trim</option>';
-                
-                const trims = vehicleData.trims[this.value] || [];
-                trims.forEach(trim => {
-                    const option = document.createElement('option');
-                    option.value = trim;
-                    option.textContent = trim;
-                    trimSelect.appendChild(option);
-                });
-            } else {
+            if (this.value === 'custom') {
+                customModelGroup.style.display = 'block';
                 trimSelect.disabled = true;
+            } else {
+                customModelGroup.style.display = 'none';
+                if (this.value) {
+                    trimSelect.disabled = false;
+                    trimSelect.innerHTML = '<option value="">Select Trim</option>';
+                    
+                    const trims = vehicleData.trims[this.value] || [];
+                    trims.forEach(trim => {
+                        const option = document.createElement('option');
+                        option.value = trim;
+                        option.textContent = trim;
+                        trimSelect.appendChild(option);
+                    });
+                } else {
+                    trimSelect.disabled = true;
+                }
             }
         });
 
@@ -1223,15 +1530,27 @@
             
             const year = document.getElementById('vehicleYear').value;
             const make = document.getElementById('vehicleMake').value;
-            const model = document.getElementById('vehicleModel').value;
+            let model = document.getElementById('vehicleModel').value;
             const trim = document.getElementById('vehicleTrim').value;
             const category = document.getElementById('partCategory').value;
             const partNumber = document.getElementById('partNumber').value;
+            
+            // Handle custom model
+            if (model === 'custom') {
+                model = document.getElementById('customModel').value;
+                if (!model) {
+                    showNotification('Please enter a model name', 'error');
+                    return;
+                }
+            }
             
             if (!year || !make || !model || !category) {
                 showNotification('Please fill in all required fields', 'error');
                 return;
             }
+            
+            // Save current vehicle
+            currentVehicle = { year, make, model, trim };
             
             // Save vehicle if not already saved
             saveVehicle(year, make, model, trim);
@@ -1263,7 +1582,8 @@
                 Object.keys(partsDatabase).forEach(cat => {
                     partsDatabase[cat].forEach(part => {
                         if (part.number.toLowerCase().includes(partNumber.toLowerCase()) || 
-                            part.name.toLowerCase().includes(partNumber.toLowerCase())) {
+                            part.name.toLowerCase().includes(partNumber.toLowerCase()) ||
+                            part.brand.toLowerCase().includes(partNumber.toLowerCase())) {
                             parts.push(part);
                         }
                     });
@@ -1326,7 +1646,7 @@
                     <div class="part-meta">
                         <span class="meta-item"><i class="fas fa-box"></i> ${part.stock} in stock</span>
                     </div>
-                    <div class="price">${part.price}</div>
+                    <div class="price">$${part.price.toFixed(2)}</div>
                     <div class="part-actions">
                         <button class="btn btn-success" onclick="addToCart('${part.number}')">
                             <i class="fas fa-cart-plus"></i> Add to Cart
@@ -1345,7 +1665,7 @@
         }
 
         function decodeVIN() {
-            const vin = document.getElementById('vinInput').value.trim();
+            const vin = document.getElementById('vinInput').value.trim().toUpperCase();
             if (!vin) {
                 showNotification('Please enter a VIN', 'error');
                 return;
@@ -1356,16 +1676,48 @@
                 return;
             }
             
-            // Simulate VIN decoding
+            // Simple VIN validation and decoding simulation
+            let year, make, model, trim;
+            
+            // Extract year from VIN (10th character)
+            const yearChar = vin.charAt(9);
+            const yearMap = {
+                'L': 2020, 'M': 2021, 'N': 2022, 'P': 2023, 'R': 2024
+            };
+            year = yearMap[yearChar] || 2022;
+            
+            // Extract make from VIN (first character)
+            const makeChar = vin.charAt(0);
+            const makeMap = {
+                '1': 'Chevrolet', '2': 'Pontiac', '3': 'Oldsmobile', 
+                '4': 'Buick', '5': 'GMC', '6': 'Cadillac',
+                'A': 'Audi', 'B': 'BMW', 'H': 'Honda', 
+                'J': 'Jeep', 'L': 'Lincoln', 'N': 'Nissan',
+                'T': 'Toyota', 'V': 'Volkswagen'
+            };
+            make = makeMap[makeChar] || 'Honda';
+            
+            // Simple model detection based on make
+            if (make === 'Honda') model = 'Civic';
+            else if (make === 'Toyota') model = 'Camry';
+            else if (make === 'Ford') model = 'F-150';
+            else model = 'Unknown';
+            
+            // Set trim based on model
+            if (model === 'Civic') trim = 'Touring';
+            else if (model === 'Camry') trim = 'LE';
+            else if (model === 'F-150') trim = 'XLT';
+            else trim = 'Base';
+            
             document.getElementById('vinResults').style.display = 'block';
             document.getElementById('vinResults').innerHTML = `
                 <h4>VIN Decoding Results for ${vin}</h4>
                 <div class="part-card">
                     <div class="part-meta">
-                        <span class="meta-item"><strong>Year:</strong> 2022</span>
-                        <span class="meta-item"><strong>Make:</strong> Honda</span>
-                        <span class="meta-item"><strong>Model:</strong> Civic</span>
-                        <span class="meta-item"><strong>Trim:</strong> Touring</span>
+                        <span class="meta-item"><strong>Year:</strong> ${year}</span>
+                        <span class="meta-item"><strong>Make:</strong> ${make}</span>
+                        <span class="meta-item"><strong>Model:</strong> ${model}</span>
+                        <span class="meta-item"><strong>Trim:</strong> ${trim}</span>
                     </div>
                     <div class="part-meta">
                         <span class="meta-item"><strong>Engine:</strong> 1.5L Turbocharged I4</span>
@@ -1376,28 +1728,30 @@
                         <span class="meta-item"><strong>Manufactured in:</strong> United States</span>
                         <span class="meta-item"><strong>Plant:</strong> Greensburg, IN</span>
                     </div>
-                    <button class="btn" style="margin-top: 15px;" onclick="useDecodedVehicle()">
+                    <button class="btn" style="margin-top: 15px;" onclick="useDecodedVehicle('${year}', '${make}', '${model}', '${trim}')">
                         <i class="fas fa-check"></i> Use This Vehicle
                     </button>
                 </div>
             `;
         }
 
-        function useDecodedVehicle() {
+        function useDecodedVehicle(year, make, model, trim) {
             // Prefill the form with the decoded vehicle
-            document.getElementById('vehicleYear').value = '2022';
+            document.getElementById('vehicleYear').value = year;
             document.getElementById('vehicleYear').dispatchEvent(new Event('change'));
             
             setTimeout(() => {
-                document.getElementById('vehicleMake').value = 'Honda';
+                document.getElementById('vehicleMake').value = make;
                 document.getElementById('vehicleMake').dispatchEvent(new Event('change'));
                 
                 setTimeout(() => {
-                    document.getElementById('vehicleModel').value = 'Civic';
+                    document.getElementById('vehicleModel').value = model;
                     document.getElementById('vehicleModel').dispatchEvent(new Event('change'));
                     
                     setTimeout(() => {
-                        document.getElementById('vehicleTrim').value = 'Touring';
+                        if (trim && document.getElementById('vehicleTrim').querySelector(`option[value="${trim}"]`)) {
+                            document.getElementById('vehicleTrim').value = trim;
+                        }
                     }, 500);
                 }, 500);
             }, 500);
@@ -1471,8 +1825,12 @@
             document.getElementById('partNumber').value = partNumber;
             document.getElementById('partCategory').value = '';
             
-            // Trigger form submission
-            document.getElementById('compatibilityForm').dispatchEvent(new Event('submit'));
+            // Trigger form submission if we have a vehicle selected
+            if (currentVehicle) {
+                document.getElementById('compatibilityForm').dispatchEvent(new Event('submit'));
+            } else {
+                showNotification('Please select a vehicle first', 'warning');
+            }
         }
 
         function saveVehicle(year, make, model, trim) {
@@ -1515,11 +1873,20 @@
                 const vehicleEl = document.createElement('div');
                 vehicleEl.className = 'saved-vehicle';
                 vehicleEl.innerHTML = `
-                    <span>${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.trim}</span>
+                    <span onclick="loadSavedVehicle('${vehicle.id}')">${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.trim}</span>
                     <i class="fas fa-times" onclick="removeVehicle('${vehicle.id}')"></i>
                 `;
                 container.appendChild(vehicleEl);
             });
+        }
+
+        function loadSavedVehicle(vehicleId) {
+            const vehicle = savedVehicles.find(v => v.id === vehicleId);
+            if (vehicle) {
+                prefillVehicleForm(vehicle.year, vehicle.make, vehicle.model, vehicle.trim);
+                switchTab('compatibility');
+                showNotification('Vehicle loaded successfully', 'success');
+            }
         }
 
         function removeVehicle(vehicleId) {
@@ -1547,6 +1914,7 @@
             const type = document.getElementById('maintenanceType').value;
             const date = document.getElementById('maintenanceDate').value;
             const mileage = document.getElementById('maintenanceMileage').value;
+            const cost = document.getElementById('maintenanceCost').value;
             const notes = document.getElementById('maintenanceNotes').value;
             
             if (!vehicleId || !type || !date || !mileage) {
@@ -1560,6 +1928,7 @@
                 type: type,
                 date: date,
                 mileage: parseInt(mileage),
+                cost: cost ? parseFloat(cost) : 0,
                 notes: notes,
                 loggedAt: new Date().toISOString()
             };
@@ -1568,64 +1937,148 @@
             localStorage.setItem('maintenanceLogs', JSON.stringify(maintenanceLogs));
             
             // Clear form
-            document.getElementById('maintenanceDate').value = '';
+            document.getElementById('maintenanceDate').valueAsDate = new Date();
             document.getElementById('maintenanceMileage').value = '';
+            document.getElementById('maintenanceCost').value = '';
             document.getElementById('maintenanceNotes').value = '';
             
             showNotification('Maintenance logged successfully', 'success');
         }
 
-        function showAddVehicleModal() {
-            const modalHtml = `
-                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
-                    <div style="background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 500px;">
-                        <h3>Add New Vehicle</h3>
-                        <div class="form-group">
-                            <label for="newVehicleYear">Year</label>
-                            <select id="newVehicleYear">
-                                <option value="">Select Year</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="newVehicleMake">Make</label>
-                            <input type="text" id="newVehicleMake" placeholder="e.g., Toyota">
-                        </div>
-                        <div class="form-group">
-                            <label for="newVehicleModel">Model</label>
-                            <input type="text" id="newVehicleModel" placeholder="e.g., Camry">
-                        </div>
-                        <div class="form-group">
-                            <label for="newVehicleTrim">Trim (Optional)</label>
-                            <input type="text" id="newVehicleTrim" placeholder="e.g., LE">
-                        </div>
-                        <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button class="btn" onclick="saveNewVehicle()">Save Vehicle</button>
-                            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            `;
+        function loadMaintenanceHistory() {
+            const container = document.getElementById('maintenanceHistoryList');
+            container.innerHTML = '';
             
-            const modal = document.createElement('div');
-            modal.innerHTML = modalHtml;
-            modal.id = 'addVehicleModal';
-            document.body.appendChild(modal);
+            if (maintenanceLogs.length === 0) {
+                container.innerHTML = '<p>No maintenance history found.</p>';
+                return;
+            }
             
-            // Populate years
-            const yearSelect = document.getElementById('newVehicleYear');
-            vehicleData.years.forEach(year => {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                yearSelect.appendChild(option);
+            // Group maintenance by vehicle
+            const maintenanceByVehicle = {};
+            maintenanceLogs.forEach(log => {
+                if (!maintenanceByVehicle[log.vehicleId]) {
+                    maintenanceByVehicle[log.vehicleId] = [];
+                }
+                maintenanceByVehicle[log.vehicleId].push(log);
+            });
+            
+            // Display maintenance for each vehicle
+            Object.keys(maintenanceByVehicle).forEach(vehicleId => {
+                const vehicle = savedVehicles.find(v => v.id === vehicleId);
+                if (vehicle) {
+                    const vehicleHeader = document.createElement('h4');
+                    vehicleHeader.textContent = `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.trim}`;
+                    container.appendChild(vehicleHeader);
+                    
+                    maintenanceByVehicle[vehicleId]
+                        .sort((a, b) => new Date(b.date) - new Date(a.date))
+                        .forEach(log => {
+                            const maintenanceItem = document.createElement('div');
+                            maintenanceItem.className = 'maintenance-item';
+                            
+                            const typeNames = {
+                                'oil': 'Oil Change',
+                                'tire': 'Tire Rotation',
+                                'brake': 'Brake Service',
+                                'filter': 'Filter Replacement',
+                                'inspection': 'Inspection',
+                                'other': 'Other Service'
+                            };
+                            
+                            maintenanceItem.innerHTML = `
+                                <div class="part-meta">
+                                    <span class="meta-item"><strong>${typeNames[log.type]}</strong></span>
+                                    <span class="meta-item"><i class="fas fa-calendar"></i> ${new Date(log.date).toLocaleDateString()}</span>
+                                    <span class="meta-item"><i class="fas fa-tachometer-alt"></i> ${log.mileage.toLocaleString()} miles</span>
+                                    ${log.cost ? `<span class="meta-item"><i class="fas fa-dollar-sign"></i> $${log.cost.toFixed(2)}</span>` : ''}
+                                </div>
+                                ${log.notes ? `<p><em>${log.notes}</em></p>` : ''}
+                            `;
+                            container.appendChild(maintenanceItem);
+                        });
+                }
             });
         }
 
-        function closeModal() {
-            const modal = document.getElementById('addVehicleModal');
-            if (modal) {
-                modal.remove();
+        function loadUpcomingServices() {
+            const container = document.getElementById('upcomingServicesList');
+            container.innerHTML = '';
+            
+            if (maintenanceLogs.length === 0) {
+                container.innerHTML = '<p>No maintenance data available for upcoming services prediction.</p>';
+                return;
             }
+            
+            // Simple upcoming services calculation
+            const now = new Date();
+            const upcomingServices = [];
+            
+            savedVehicles.forEach(vehicle => {
+                const vehicleMaintenance = maintenanceLogs
+                    .filter(log => log.vehicleId === vehicle.id)
+                    .sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                if (vehicleMaintenance.length > 0) {
+                    const lastService = vehicleMaintenance[0];
+                    const nextOilChange = {
+                        vehicle: vehicle,
+                        type: 'Oil Change',
+                        dueDate: new Date(lastService.date),
+                        dueMileage: lastService.mileage + 5000,
+                        estimatedDate: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000) // 90 days from now
+                    };
+                    nextOilChange.dueDate.setMonth(nextOilChange.dueDate.getMonth() + 6);
+                    
+                    upcomingServices.push(nextOilChange);
+                }
+            });
+            
+            if (upcomingServices.length === 0) {
+                container.innerHTML = '<p>No upcoming services predicted.</p>';
+                return;
+            }
+            
+            upcomingServices.forEach(service => {
+                const serviceItem = document.createElement('div');
+                serviceItem.className = 'maintenance-item';
+                serviceItem.innerHTML = `
+                    <h4>${service.vehicle.year} ${service.vehicle.make} ${service.vehicle.model}</h4>
+                    <div class="part-meta">
+                        <span class="meta-item"><strong>${service.type}</strong></span>
+                        <span class="meta-item"><i class="fas fa-calendar"></i> Due around: ${service.estimatedDate.toLocaleDateString()}</span>
+                        <span class="meta-item"><i class="fas fa-tachometer-alt"></i> Around ${service.dueMileage.toLocaleString()} miles</span>
+                    </div>
+                    <button class="btn" style="margin-top: 10px;" onclick="scheduleReminder('${service.vehicle.id}', '${service.type}')">
+                        <i class="fas fa-bell"></i> Set Reminder
+                    </button>
+                `;
+                container.appendChild(serviceItem);
+            });
+        }
+
+        function scheduleReminder(vehicleId, serviceType) {
+            showNotification(`Reminder set for ${serviceType}`, 'success');
+        }
+
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            
+            // Populate years in add vehicle modal
+            if (modalId === 'addVehicleModal') {
+                const yearSelect = document.getElementById('newVehicleYear');
+                yearSelect.innerHTML = '<option value="">Select Year</option>';
+                vehicleData.years.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                });
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
         }
 
         function saveNewVehicle() {
@@ -1640,10 +2093,10 @@
             }
             
             saveVehicle(year, make, model, trim);
-            closeModal();
+            closeModal('addVehicleModal');
         }
 
-        function prefillVehicleForm(year, make, model) {
+        function prefillVehicleForm(year, make, model, trim = '') {
             document.getElementById('vehicleYear').value = year;
             document.getElementById('vehicleYear').dispatchEvent(new Event('change'));
             
@@ -1653,20 +2106,191 @@
                 
                 setTimeout(() => {
                     document.getElementById('vehicleModel').value = model;
+                    document.getElementById('vehicleModel').dispatchEvent(new Event('change'));
+                    
+                    setTimeout(() => {
+                        if (trim && document.getElementById('vehicleTrim').querySelector(`option[value="${trim}"]`)) {
+                            document.getElementById('vehicleTrim').value = trim;
+                        }
+                    }, 500);
                 }, 500);
             }, 500);
         }
 
         function addToCart(partNumber) {
-            showNotification(`Added ${partNumber} to cart`, 'success');
+            // Find the part in the database
+            let partToAdd = null;
+            Object.keys(partsDatabase).forEach(category => {
+                const part = partsDatabase[category].find(p => p.number === partNumber);
+                if (part) {
+                    partToAdd = { ...part, category: category };
+                }
+            });
+            
+            if (partToAdd) {
+                // Check if part is already in cart
+                const existingItem = shoppingCart.find(item => item.number === partNumber);
+                if (existingItem) {
+                    existingItem.quantity += 1;
+                } else {
+                    shoppingCart.push({
+                        ...partToAdd,
+                        quantity: 1,
+                        addedAt: new Date().toISOString()
+                    });
+                }
+                
+                localStorage.setItem('shoppingCart', JSON.stringify(shoppingCart));
+                updateCartCount();
+                showNotification(`Added ${partToAdd.name} to cart`, 'success');
+            }
+        }
+
+        function updateCartCount() {
+            const cartCount = shoppingCart.reduce((total, item) => total + item.quantity, 0);
+            document.getElementById('cartCount').textContent = cartCount;
+        }
+
+        function viewCart() {
+            showModal('cartModal');
+            updateCartDisplay();
+        }
+
+        function updateCartDisplay() {
+            const cartItems = document.getElementById('cartItems');
+            const cartTotal = document.getElementById('cartTotal');
+            
+            cartItems.innerHTML = '';
+            
+            if (shoppingCart.length === 0) {
+                cartItems.innerHTML = '<p>Your cart is empty.</p>';
+                cartTotal.textContent = 'Total: $0.00';
+                return;
+            }
+            
+            let total = 0;
+            
+            shoppingCart.forEach((item, index) => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                
+                const cartItem = document.createElement('div');
+                cartItem.className = 'cart-item';
+                cartItem.innerHTML = `
+                    <div>
+                        <strong>${item.name}</strong><br>
+                        <small>${item.brand} - ${item.number}</small><br>
+                        <small>$${item.price.toFixed(2)} each</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                            <button class="btn btn-secondary" onclick="updateCartQuantity(${index}, -1)" style="padding: 5px 10px;">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <span>${item.quantity}</span>
+                            <button class="btn btn-secondary" onclick="updateCartQuantity(${index}, 1)" style="padding: 5px 10px;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <strong>$${itemTotal.toFixed(2)}</strong><br>
+                        <button class="btn btn-danger" onclick="removeFromCart(${index})" style="padding: 5px 10px; margin-top: 5px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                cartItems.appendChild(cartItem);
+            });
+            
+            cartTotal.textContent = `Total: $${total.toFixed(2)}`;
+        }
+
+        function updateCartQuantity(index, change) {
+            const item = shoppingCart[index];
+            item.quantity += change;
+            
+            if (item.quantity <= 0) {
+                shoppingCart.splice(index, 1);
+            }
+            
+            localStorage.setItem('shoppingCart', JSON.stringify(shoppingCart));
+            updateCartCount();
+            updateCartDisplay();
+        }
+
+        function removeFromCart(index) {
+            shoppingCart.splice(index, 1);
+            localStorage.setItem('shoppingCart', JSON.stringify(shoppingCart));
+            updateCartCount();
+            updateCartDisplay();
+            showNotification('Item removed from cart', 'success');
+        }
+
+        function checkout() {
+            if (shoppingCart.length === 0) {
+                showNotification('Your cart is empty', 'warning');
+                return;
+            }
+            
+            showNotification('Proceeding to checkout...', 'success');
+            // In a real application, this would redirect to a checkout page
+            setTimeout(() => {
+                shoppingCart = [];
+                localStorage.setItem('shoppingCart', JSON.stringify(shoppingCart));
+                updateCartCount();
+                closeModal('cartModal');
+                showNotification('Order placed successfully!', 'success');
+            }, 2000);
         }
 
         function viewPartDetails(partNumber) {
-            showNotification(`Showing details for ${partNumber}`, 'success');
+            // Find the part in the database
+            let partDetails = null;
+            Object.keys(partsDatabase).forEach(category => {
+                const part = partsDatabase[category].find(p => p.number === partNumber);
+                if (part) {
+                    partDetails = part;
+                }
+            });
+            
+            if (partDetails) {
+                document.getElementById('partDetailsTitle').innerHTML = `<i class="fas fa-info-circle"></i> ${partDetails.name}`;
+                
+                let specificationsHtml = '';
+                if (partDetails.specifications) {
+                    specificationsHtml = '<h4>Specifications</h4><ul style="margin-left: 20px;">';
+                    for (const [key, value] of Object.entries(partDetails.specifications)) {
+                        specificationsHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+                    }
+                    specificationsHtml += '</ul>';
+                }
+                
+                document.getElementById('partDetailsContent').innerHTML = `
+                    <div class="part-meta">
+                        <span class="meta-item"><i class="fas fa-tag"></i> ${partDetails.brand}</span>
+                        <span class="meta-item"><i class="fas fa-hashtag"></i> ${partDetails.number}</span>
+                        <span class="meta-item"><i class="fas fa-shield-alt"></i> ${partDetails.warranty}</span>
+                    </div>
+                    <p>${partDetails.description}</p>
+                    ${specificationsHtml}
+                    <div class="price" style="font-size: 1.6rem; margin: 20px 0;">$${partDetails.price.toFixed(2)}</div>
+                    <div class="part-meta">
+                        <span class="meta-item"><i class="fas fa-box"></i> ${partDetails.stock} in stock</span>
+                        <span class="meta-item"><i class="fas fa-star"></i> ${partDetails.rating} rating (${partDetails.reviews} reviews)</span>
+                    </div>
+                `;
+                
+                // Update add to cart button to use this part
+                document.getElementById('addToCartFromDetails').onclick = function() {
+                    addToCart(partNumber);
+                    closeModal('partDetailsModal');
+                };
+                
+                showModal('partDetailsModal');
+            }
         }
 
         function savePart(partNumber) {
-            showNotification(`Saved ${partNumber} to your parts list`, 'success');
+            showNotification(`Part ${partNumber} saved to your favorites`, 'success');
         }
 
         function showNotification(message, type) {
@@ -1686,6 +2310,19 @@
 
         document.getElementById('registerBtn').addEventListener('click', function() {
             showNotification('Registration functionality would be implemented here', 'warning');
+        });
+
+        // Cart button handler
+        document.getElementById('cartBtn').addEventListener('click', viewCart);
+
+        // Close modals when clicking outside
+        window.addEventListener('click', function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
         });
     </script>
 </body>
